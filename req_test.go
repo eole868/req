@@ -271,6 +271,55 @@ func TestUpload(t *testing.T) {
 	str := "hello req"
 	file := ioutil.NopCloser(strings.NewReader(str))
 	upload := FileUpload{
+		File:        file,
+		ContentType: "text/plain",
+		FieldName:   "media",
+		FileName:    "hello.txt",
+	}
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		mr, err := r.MultipartReader()
+		if err != nil {
+			t.Fatal(err)
+		}
+		for {
+			p, err := mr.NextPart()
+			if err != nil {
+				break
+			}
+			if p.FileName() != upload.FileName {
+				t.Errorf("filename = %s; want = %s", p.FileName(), upload.FileName)
+			}
+			if p.FormName() != upload.FieldName {
+				t.Errorf("formname = %s; want = %s", p.FileName(), upload.FileName)
+			}
+			if p.Header.Get("Content-Type") != "text/plain" {
+				t.Errorf("Content-Type = %s; want = %s", p.Header.Get("Content-Type"), "text/plain")
+			}
+			data, err := ioutil.ReadAll(p)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(data) != str {
+				t.Errorf("file content = %s; want = %s", data, str)
+			}
+		}
+	}
+	ts := httptest.NewServer(http.HandlerFunc(handler))
+	_, err := Post(ts.URL, upload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts = newDefaultTestServer()
+	_, err = Post(ts.URL, File("*.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUploadContentType(t *testing.T) {
+	str := "hello req"
+	file := ioutil.NopCloser(strings.NewReader(str))
+	upload := FileUpload{
 		File:      file,
 		FieldName: "media",
 		FileName:  "hello.txt",

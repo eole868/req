@@ -48,6 +48,8 @@ type Host string
 type FileUpload struct {
 	// filename in multipart form.
 	FileName string
+	// content-type in multipart form.
+	ContentType string
 	// form field name
 	FieldName string
 	// file to uplaod, required
@@ -540,6 +542,7 @@ func (m *multipartHelper) Upload(req *http.Request) {
 				i++
 				up.FieldName = "file" + strconv.Itoa(i)
 			}
+
 			h := make(textproto.MIMEHeader)
 			h.Set("Content-Disposition",
 				fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
@@ -547,9 +550,14 @@ func (m *multipartHelper) Upload(req *http.Request) {
 					strings.NewReplacer("\\", "\\\\", `"`, "\\\"").Replace(up.FileName),
 				),
 			)
-			filename := filepath.Base(up.FileName)
-			mineType := mime.TypeByExtension(filepath.Ext(filename))
-			h.Set("Content-Type", mineType)
+			if up.ContentType == "" {
+				filename := filepath.Base(up.FileName)
+				mineType := mime.TypeByExtension(filepath.Ext(filename))
+				h.Set("Content-Type", mineType)
+			} else {
+				h.Set("Content-Type", up.ContentType)
+			}
+
 			fileWriter, err := bodyWriter.CreatePart(h)
 			if err != nil {
 				continue
